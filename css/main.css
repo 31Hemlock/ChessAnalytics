@@ -1,0 +1,18 @@
+.col {
+    background-color:green;
+}
+h1, h2, h3, p, div {
+  color: lightblue;
+}
+
+.my-sidebar {
+    -ms-flex: 0 0 230px;
+    flex: 0 0 230px;
+    background-color: greenyellow; 
+} 
+
+@media (max-width: 690px) {
+  .my-sidebar {
+    display: none; 
+  } 
+}

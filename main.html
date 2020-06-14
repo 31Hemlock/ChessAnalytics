@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>
+
+window.$ = window.jQuery = require('jquery');
+Bootstrap = require('bootstrap');
+Popper = require('popper.js');
+MongoClient = require('mongodb');
+Highcharts = require('highcharts');
+Store = require('electron-store');
+dotenv = require('dotenv').config();
+
+const store = new Store();
+
+
+if (store.get('user') == '') {
+  store.set('user', 'None');
+}
+var sesUser = store.get('user')
+
+var Chessground = require("chessground").Chessground;
+
+var Chess = require('chess.js').Chess;
+const { dialog } = require('electron').remote
+const options = {
+  type: 'question', 
+  buttons: ['Continue'],
+  defaultId: 2,
+  title: 'Error', 
+  message: 'Our script has encountered an error. Are you sure you spelled your username correctly?'
+}
+
+
+
+const theme = require('./js/darkUnica.js')
+const castlingFile = require('./js/chartCats/castlingFile.js')
+const numberOfGamesFile = require('./js/chartCats/numberOfGamesFile.js')
+const gamesPerFormatFile = require('./js/chartCats/gamesPerFormatFile.js')
+const blunderTimePeriodFile = require('./js/chartCats/blunderTimePeriodFile.js')
+const blunderTimeDayFile = require('./js/chartCats/blunderTimeDayFile.js')
+const brillianciesFile = require('./js/chartCats/brillianciesFile.js')
+const highestDailyGamesFile = require('./js/chartCats/highestDailyGamesFile.js')
+const easiestLossFile = require('./js/chartCats/easiestLossFile.js')
+const toughestWinFile = require('./js/chartCats/toughestWinFile.js')
+const craziestGameFile = require('./js/chartCats/craziestGameFile.js')
+
+
+const config = require('./node_modules/chessground/config.js')
+const state = require('./node_modules/chessground/state.js')
+
+var os = require('os');
+const { spawn } = require('child_process');
+
+const summaryFile = require('./js/chartCats/summaryFile.js')
+
+
+
+
+  </script>
+
+  <title> Analytics! </title>
+  <link rel="stylesheet" href="./node_modules/chessground/assets/chessground.css">
+  <link rel="stylesheet" href="./node_modules/chessground/assets/theme.css">
+  <link rel="stylesheet" href="./node_modules/chessground/assets/3d.css">
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+
+</head>
+
+<body>
+
+<!-- Modal -->
+<div id="myModal" class="modal">
+
+  <!-- Modal content -->
+  <div class="modal-content">
+
+    <span class="close" onclick="closeModal()">&times;</span>
+    <h3 style="text-align:center;">Step 1: Select your username</h3>
+    <h4 style="text-align:center;">Please enter your Lichess username, or select it from the dropdown menu.</h4>
+
+    <div class="dropdown">
+      <input id="dropdownSelect" class="btn btn-primary" maxlength="20"></input>
+      <div id="myDropdown" class="dropdown-content" style="max-height:300px;overflow-y:scroll;margin-left:auto;margin-right:auto;"></div>
+    </div>
+
+
+    <h3 style="text-align:center;">Step 2: Analyze</h3>
+    <h4 style="text-align:center;">How deeply would you like to analyze your games? </h4>
+    <div style="text-align:center;">
+      <button type="button" id="basicButton" onclick="analyzeUsername(this.innerHTML)" class="btn btn-info btn-lg">Basic</button>
+      <button type="button" id="averageButton" onclick="analyzeUsername(this.innerHTML)" class="btn btn-info btn-lg">Average</button>
+      <button type="button" id="advancedButton" onclick="analyzeUsername(this.innerHTML)" class="btn btn-info btn-lg">Advanced</button>
+    </div>
+    <br>
+    <div id="progressWrapper" class="progress" style="width:300px;display:none;">
+      <div id="analysisProgress" class="progress-bar progress-bar-striped bg-success active" role="progressbar"></div>
+    </div>
+
+    <p id="lastAnalyzed"></p>
+
+  </div>
+
+</div>
+
+<div class="container-fluid">
+  <div class="container">
+    <div class="jumbotron" style="background-color: rgba(238, 238, 238, 0.9);">
+
+      <div>
+        <h1 style="width:70%;">Chess Analytics</h1>
+        <button id="userButton"type="button" class="btn btn-info btn-lg" style="float:right;" onclick="openModal()"></button>
+      </div> 
+      
+      <div>
+        <p>Revel in your victories. Learn from your defeats.</p>
+      </div> 
+
+      <div class="col-lg-4"></div>
+
+      <div class="btn-group" id='Timescale'>
+        <button type="button" class="btn btn-info btn-lg" onclick="buttonClick('Daily')">Daily</button>
+        <button type="button" class="btn btn-info btn-lg" onclick="buttonClick('Monthly')">Monthly</button>
+        <button type="button" class="btn btn-info btn-lg" onclick="buttonClick('Yearly')">Yearly</button>
+      </div>
+
+    </div>
+  </div>
+
+
+
+
+  <div class="container" style="z-index:1;">
+
+    <div class="well well-lg col-md-12 offset-md-10" id="summaryWell">
+      <h1 id="summaryTitle"></h1>
+      <div id="summaryDiv"> </div>
+      <h3 id="summaryPlaysPerTime"></h3>
+    </div>
+
+    <div class="well well-lg col-md-6 offset-md-10" id="numberOfGamesWell"></div>
+    <div class="well well-lg col-md-6" id="gamesPerFormatWell"></div>
+    <div class="well well-lg col-md-6" id="castlingWell"></div>
+    <div class="well well-lg col-md-6" id="blunderTimePeriodWell"></div>
+    <div class="well well-lg col-md-12 offset-md-10" id="blunderTimeDayWell"></div>
+
+    <div class="well well-lg col-md-4" id="easiestLossWell">
+
+      <div id="easiestLossSummary" class="text-center">
+        <h1>Easiest Loss</h1> 
+        <h5 id="easiestLossDate"></h5> 
+
+        <h5 id="easiestLossType"></h5> 
+
+        <h4 id="easiestLossBlack"></h4>
+      </div>
+
+      <div class="green merida">
+        <div id="easiestLossDiv" class="cg-wrap margin-center"></div>
+      </div>
+
+    <br>
+
+    <div class="text-center">
+      <h4 id="easiestLossWhite" style="margin-top:-1%;"></h4>
+      <button type="button" class="btn btn-info easiestLossButton text-center">See the Game on Lichess</button>
+    </div>
+      
+    </div>
+
+    <div class="well well-lg col-md-4" id="toughestWinWell">
+
+      <div id="toughestWinSummary" class="text-center">
+        <h1>Toughest Win</h1> 
+        <h5 id="toughestWinDate"></h5>  
+        <h5 id="toughestWinType"></h5>
+        <h4 id="toughestWinBlack"></h4>
+      </div>
+      <div class="green merida" class="text-center">
+        <div id="toughestWinDiv" class="cg-wrap margin-center"></div>
+      </div>
+      <br>
+      <div class="text-center">
+          <h4 id="toughestWinWhite" style="margin-top:-1%;"></h4>
+
+        <button type="button" class="btn btn-info toughestWinButton text-center">See the Game on Lichess</button>
+      </div>
+      </div>
+
+    <div class="well well-lg col-md-4" id="craziestGameWell">
+
+      <div id="craziestGameSummary" class="text-center">
+        <h1>Craziest Game</h1> 
+        <h5 id="craziestGameDate"></h5>  
+        <h5 id="craziestGameType"></h5> 
+        <h4 id="craziestGameBlack"></h4>
+      </div>
+  
+      <div class="green merida" class="text-center">
+        <div id="craziestGameDiv" class="cg-wrap margin-center"></div>
+      </div>
+      <br> 
+      <div class="text-center">
+        <h4 id="craziestGameWhite" style="margin-top:-1%;"></h4>
+        <button type="button" class="btn btn-info craziestGameButton text-center">See the Game on Lichess</button>
+      </div>
+    </div>
+  </div>
+  <div class="loading style-2" id="loading" style="display:none;"><div class="lds-grid"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div> </div> <!--loading divs delete this line-->
+</div>
+
+
+
+
+
+
+
+</body>
+</html>
+
+
+<style>
+
+#summaryWell {
+  font-size: 16px;
+}
+
+img {
+  min-width:1080px;
+  min-height:1916px;
+  margin:0;
+  padding:0;
+
+}
+html {
+  height:100%;
+  width:100%;
+
+}
+body  {
+  background-color:currentColor;
+  margin:0px;
+  height:100%;
+  width:100%;
+  background-position: center center;
+
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-size:cover;
+  background-image: url('./images/background.jpg')
+
+}
+
+.margin-center {
+  margin: auto;
+}
+
+.well {
+  background-color: rgba(238, 238, 238, 0.7);
+}
+
+@media (min-width:992px) and (max-width:1200px){
+  .merida  {
+    height:248px;
+    width:248px;
+  }
+  .cg-wrap {
+    height:248px;
+    width:248px;
+  }
+}
+
+/* loading */
+.loading {
+    width: 100%;
+    height: 100%;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background-color: rgba(0,0,0,.5);
+}
+.style-2 {
+    border-style: double;
+    border-color: #ccc transparent;
+}
+.lds-grid {
+  top:50%;
+  left:50%;
+  display: inline-block;
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+.lds-grid div {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  animation: lds-grid 1.2s linear infinite;
+}
+.lds-grid div:nth-child(1) {
+  top: -32px;
+  left: -32px;
+  animation-delay: 0s;
+}
+.lds-grid div:nth-child(2) {
+  top: -32px;
+  left: -8px;
+  animation-delay: -0.4s;
+}
+.lds-grid div:nth-child(3) {
+  top: -32px;
+  left: 16px;
+  animation-delay: -0.8s;
+}
+.lds-grid div:nth-child(4) {
+  top: -8px;
+  left: -32px;
+  animation-delay: -0.4s;
+}
+.lds-grid div:nth-child(5) {
+  top: -8px;
+  left: -8px;
+  animation-delay: -0.8s;
+}
+.lds-grid div:nth-child(6) {
+  top: -8px;
+  left: 16px;
+  animation-delay: -1.2s;
+}
+.lds-grid div:nth-child(7) {
+  top: 16px;
+  left: -32px;
+  animation-delay: -0.8s;
+}
+.lds-grid div:nth-child(8) {
+  top: 16px;
+  left: -8px;
+  animation-delay: -1.2s;
+}
+.lds-grid div:nth-child(9) {
+  top: 16px;
+  left: 16px;
+  animation-delay: -1.6s;
+}
+@keyframes lds-grid {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgb(0,0,0);
+  background-color: rgba(0,0,0,0.4);
+}
+
+.modal-content {
+  background-color: #fefefe;
+  margin: 15% auto; 
+  padding: 20px;
+  border: 1px solid #888;
+  width: 80%;
+  text-align:center;
+}
+
+.close {
+  color: #aaa;
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.close:hover,
+.close:focus {
+  color: black;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+
+.dropbtn {
+  background-color: #4CAF50;
+  color: white;
+  padding: 16px;
+  font-size: 16px;
+  border: none;
+  cursor: pointer;
+}
+
+.dropbtn:hover, .dropbtn:focus {
+  background-color: #3e8e41;
+}
+
+#myInput {
+  box-sizing: border-box;
+  background-image: url('searchicon.png');
+  background-position: 14px 12px;
+  background-repeat: no-repeat;
+  font-size: 16px;
+  padding: 14px 20px 12px 45px;
+  border: none;
+  border-bottom: 1px solid #ddd;
+}
+
+#myInput:focus {outline: 3px solid #ddd;}
+
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  background-color: #f6f6f6;
+  min-width: 230px;
+  border: 1px solid #ddd;
+  z-index: 1;
+}
+
+.dropdown-content a {
+  color: black;
+  padding: 12px 16px;
+  text-decoration: none;
+  display: -webkit-inline-box;
+}
+
+.dropdown-content a:hover {background-color: #f1f1f1}
+
+.removeItem {
+  text-align:center;
+  background: url(images/trash.ico) no-repeat;
+  float:right;
+  width:20px;
+  height:23px;
+  margin:3%;
+}
+
+.usernameOption{ 
+  width:auto;
+  overflow:auto;
+  font-size:16px;
+  box-sizing: border-box;
+  padding:10px;
+
+}
+
+
+
+#myDropdown {
+  display:none;
+  width:auto;
+  margin-right:50px;
+  width:350px;
+  overflow:inherit;
+}
+
+.allUsernames {
+  padding: 5px;
+}
+
+progress[value]::-webkit-progress-value {
+  background-image:
+	   -webkit-linear-gradient(-45deg, 
+	                           transparent 33%, rgba(0, 0, 0, .1) 33%, 
+	                           rgba(0,0, 0, .1) 66%, transparent 66%),
+	   -webkit-linear-gradient(top, 
+	                           rgba(255, 255, 255, .25), 
+	                           rgba(0, 0, 0, .25)),
+	   -webkit-linear-gradient(left, #09c, #f44);
+
+    border-radius: 2px; 
+    background-size: 35px 20px, 100% 100%, 100% 100%;
+}
+
+
+</style>
+
+<script>
+
+
+var easiestLossDiv = document.getElementById('easiestLossDiv')
+
+// Constant to display the chessboard. Chessground(element to display information in, configuration)
+
+
+var name = '';
+var value = "";
+var query = {};
+var bucketValues = [];
+var myData = [];
+var failureCallback = 'ope';
+var checkIfDataSorted = false;
+var months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+var weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+var prettyBucketValues = [];
+var date;
+var month;
+var dataDialog;
+var windowState = 0
+var analysisTime;
+var delSpawn;
+var makedatestring = '';
+var makesubstr = '';
+var buttonID = '';
+var tempArray = [];
+var indexOfDate = 0;
+var games = [];
+var countGames = 0;
+var countYears = [];
+var blankList = [];
+var shown = 0
+
+
+window.onload = function() {
+  getUser()
+  populateList()
+}
+function getUser() {
+  document.getElementById("userButton").innerHTML = "Current User: " + store.get('user');
+  document.getElementById("dropdownSelect").value = store.get('user');
+  updateDate(store.get('user'))
+
+}
+
+function populateList() {
+  document.getElementById('myDropdown').innerHTML = ''
+  document.getElementById("dropdownSelect").value = store.get('user');
+  nameList = store.get('list');
+  for (item in nameList) {
+
+    document.getElementById('myDropdown').innerHTML += '<div class="allUsernames" id="option' + item + '"> <a class="usernameOption" onclick="changeValue(this.innerHTML)">' + nameList[item] + '</a>'
+
+      + '<button class="removeItem" tabIndex="-1"onclick="removeItem(' + item + ')"></button> </div>';
+
+  }
+}
+
+function updateDate(user) {
+  userDate = user + 'Date'
+  if (!store.get(userDate)) {
+    store.set(userDate, 'Never')
+  }
+  document.getElementById('lastAnalyzed').innerHTML = 'Last analyzed: ' + store.get(userDate)
+}
+
+function removeItem(itemNumber) {
+  currentArray = store.get('list')
+  console.log(currentArray)
+  currentArray.splice(itemNumber, 1)
+  console.log(currentArray)
+  store.set('list', currentArray)
+  populateList()
+
+}
+
+
+function changeValue(user) {
+  document.getElementById("dropdownSelect").value = user;
+  store.set('user', user)
+  sesUser = store.get('user');
+  getUser()
+  hideDropdown()
+}
+
+function showDropdown() {
+  document.getElementById('myDropdown').style.display = "block"
+  shown = 1
+
+}
+
+function hideDropdown() {
+  document.getElementById('myDropdown').style.display = "none"
+  shown = 0
+}
+
+$("#dropdownSelect").on('click', function() {
+  console.log(shown)
+  if (shown == 0) {
+    showDropdown()
+  } else {
+    hideDropdown()
+  }
+})
+
+$("#dropdownSelect").on('keyup', function (e) {
+  enteredItem = document.getElementById("dropdownSelect").value
+  store.set('user', enteredItem)
+  sesUser = store.get('user');
+  getUser()
+    if (e.keyCode === 13 && enteredItem.length > 0) {
+      blankList = []
+      list = store.get('list')
+      if (list) {
+        if (!list.includes(enteredItem)){
+          list.unshift(enteredItem)
+          store.set('list', list);
+        } else {
+        }
+      }
+      else {
+        blankList.unshift(enteredItem)
+        store.set('list', blankList);
+      }
+      console.log(store.get('list'))
+      populateList()
+
+    }
+});
+
+$("#dropdownSelect").keypress(function(event){
+  showDropdown()
+  var ew = event.which;
+  if (48 <= ew && ew <= 57 || 65 <= ew && ew <= 90 || 97 <= ew && ew <= 122 || ew == 95)
+    return true;
+  return false;
+});
+
+
+function filterFunction() {
+  var input, filter, ul, li, a, i;
+  input = document.getElementById("myInput");
+  filter = input.value.toUpperCase();
+  div = document.getElementById("myDropdown");
+  a = div.getElementsByTagName("a");
+  for (i = 0; i < a.length; i++) {
+    txtValue = a[i].textContent || a[i].innerText;
+    if (txtValue.toUpperCase().indexOf(filter) > -1) {
+      a[i].style.display = "";
+    } else {
+      a[i].style.display = "none";
+    }
+  }
+}
+
+
+
+var modal = document.getElementById("myModal");
+var btn = document.getElementById("myBtn");
+var span = document.getElementsByClassName("close")[0];
+var myDropdown = document.getElementById('myDropdown');
+var dropdownSelect = document.getElementById('dropdownSelect')
+
+function openModal() {
+  // update lastAnalyzed date
+  curUser =
+  lastAnalyzed(store.get('user'))
+
+  // open modal
+  modal.style.display = "block";
+  document.getElementsByTagName('body')[0].style.position = "fixed";
+}
+
+function closeModal() {
+  modal.style.display = "none";
+  document.getElementsByTagName('body')[0].style.position = "";
+
+}
+
+function lastAnalyzed(username) {
+
+}
+
+
+window.onclick = function(event) {
+  if (event.target == modal) {
+    closeModal()
+  }
+}
+
+
+// ANALYSIS SECTION
+
+function analyzeUsername(analysisLevel) {
+  user = store.get('user')
+
+
+  connectToMongo().then(myDataset => {
+    console.log(myDataset)
+    myDataset.find(query).toArray(function(err, itemsExist) {
+      console.log(itemsExist);
+
+    if (itemsExist[0]) {
+      dataDialog = confirm("You have already analyzed data for this user. Would you like to delete your data and re-analyze?");
+      if (dataDialog == true) {
+          myDataset.drop(function(err, deleted) {
+          if (err) throw err;
+          if (deleted) console.log("Collection deleted");
+
+          delSpawn = spawn('python', ['./game_analysis/AnalyzeChessGames/deleteFile.py', user]);
+          
+        });
+
+      } else {
+        document.getElementById('basicButton').disabled = false;
+        document.getElementById('averageButton').disabled = false;
+        document.getElementById('advancedButton').disabled = false;
+  
+        return;
+      }
+    }
+  })
+
+    document.getElementById('basicButton').disabled = true;
+    document.getElementById('averageButton').disabled = true;
+    document.getElementById('advancedButton').disabled = true;
+
+    updateProgress(0)
+    if (analysisLevel == "Basic") {
+      analysisTime = 1/100
+    }
+
+    if (analysisLevel == "Average") {
+      analysisTime = 1
+    }
+
+    if (analysisLevel == "Advanced") {
+      analysisTime = 2
+    }
+    console.log('after buttons disabled')
+
+    var today = new Date();
+    year = today.getFullYear()
+    month = today.getMonth()+1
+    if (month < 10) {
+      month = '0' + month
+    }
+    day = today.getDate()
+
+    console.log(analysisTime)
+    const ls = spawn('python', ['./game_analysis/AnalyzeChessGames/runAnalysis.py', user, analysisTime]);
+    document.getElementById('progressWrapper').style = 'block'
+    ls.stdout.on('data', (data) => {
+      console.log(`stdout: ${data}`);
+      //console.log(data)
+      var totalGamesMatch = new RegExp(/The total number of games is \d.*/g);
+      paragraph = data.toString()
+      try {
+        x = (paragraph.match(totalGamesMatch)).toString()
+
+        totalGames = x.split(" ").pop();
+        totalGames = parseInt(totalGames)
+
+      }
+      catch(err) {
+        console.log('totalGames not found')
+        console.log(err)
+      }
+      
+      var curGamesMatch = new RegExp(/Game number: \d.*/g);
+      y = (paragraph.match(curGamesMatch)).toString()
+
+
+      curGames = y.split(" ").pop()
+      curGames = parseInt(curGames) + 1 // starts at 0
+      console.log(curGames)
+      curGames = parseInt(curGames)
+      console.log(totalGames)
+      console.log(curGames)
+      curProg = curGames/totalGames
+      updateProgress(curProg)
+      console.log('bank heart')
+
+    });
+
+    ls.stderr.on('data', (data) => {
+      console.error(`stderr: ${data}`);
+    });
+
+    ls.on('close', (code) => {
+      console.log(`child process exited with code ${code}`);
+      document.getElementById('basicButton').disabled = false;
+      document.getElementById('averageButton').disabled = false;
+      document.getElementById('advancedButton').disabled = false;
+      if (code == 0) {
+        store.set(user + 'Date', today.toLocaleDateString("en-us"));
+        console.log(store.get(user + 'Date'))
+        document.getElementById('lastAnalyzed').innerHTML = 'Last analyzed: ' + store.get(user + 'Date')
+      } else if (code == 1) {
+        const response = dialog.showMessageBox(null, options);
+      }
+
+
+    });
+  })
+}
+
+function updateProgress(progressNum) {
+  console.log(progressNum)
+  progressNum = progressNum * 100
+  prog = progressNum + "%"
+  console.log(prog)
+  document.getElementById('analysisProgress').style.width = prog
+  if (progressNum == 100) {
+    document.getElementById('analysisProgress').classList.remove("active")
+  } else {
+    if (!document.getElementById('analysisProgress').classList.contains("active"))
+      document.getElementById('analysisProgress').classList.add("active")
+  }
+}
+
+
+// DISPLAY SECTION
+
+
+function connectToMongo() {
+  var connectToMongo = new Promise(
+    function (resolve, reject) {
+      MongoClient.connect("mongodb+srv://" + process.env.mongoUser + ":" + process.env.mongoPass + "@cluster0-cofis.mongodb.net/chess?retryWrites=true&w=majority", { useNewUrlParser: true }, function (err, db) {
+        mydb = db.db('chess');
+        myDataset = mydb.collection(store.get('user'));
+        xyz = myDataset
+        console.log(xyz)
+        if (mydb) { resolve(myDataset)}
+        if(err) { reject(err) };
+      })
+    })
+  return connectToMongo
+}
+
+
+
+// This function is called when a button is pressed, and executes all other functions to generate analysis for that button.
+function generateBuckets() {
+  // Connect to the database.
+  var graphGeneration = new Promise(
+  function (resolve, reject) {
+    myData = [];
+    bucketValues = [];
+    prettyBucketValues = [];
+    tempArray = [];
+    var date = new Date();
+
+    // The following 'if' statements create the array that contains the X-axis labels (ex. 2019-05-01).
+    if (buttonID == 'Daily') {
+      for (i=0; i < 7; i++) {
+        // get bucketValues
+        yesterday = new Date(Date.now() - (864e5 * i));
+        makesubstr = yesterday.toISOString();
+        bucketValues[i] = makesubstr.substr(0, 10)
+        prettyBucketValues[i] = weekdays[yesterday.getDay()];
+        makesubstr = '';
+      }
+    }
+
+    if (buttonID == 'Monthly') {
+      for (i=0; i < 12; i++) {
+        // get bucketValues
+
+        yestermonth = new Date(Date.now())
+        
+        // Set the day to the 15th because time is weird and months are incongruent and the day doesn't matter for our code
+        yestermonth.setDate(15)
+
+        month = yestermonth.getMonth()
+        yestermonth.setMonth(month - i)
+        console.log(yestermonth)
+
+        makesubstr = yestermonth.toISOString();
+
+        bucketValues[i] = makesubstr.substr(0, 7)
+        prettyBucketValues[i] = months[yestermonth.getMonth()] + " ‘" + yestermonth.getFullYear().toString().substr(-2);
+        makesubstr = '';
+      }
+    }
+    if (buttonID == 'Yearly') {
+      for (i=0; i < countYears.length; i++) {
+        bucketValues[i] = countYears[i]
+        prettyBucketValues[i] = countYears[i];
+        makesubstr = '';
+      }
+    }
+
+    var reason = new Error("generateBuckets broke.");
+    bucketValues.reverse()
+    prettyBucketValues.reverse()
+
+
+
+    if (bucketValues.length > 0) {
+        resolve(myData)
+      } else {
+        reject(reason)
+      }  
+    })
+    return graphGeneration;
+}
+
+// This function creates a query and then sends the data to charts. 
+function queryData() {
+  var datasetGeneration = new Promise(
+    function (resolve, reject) {
+      myDataset.find(query).toArray(function(err, items) {
+        console.log(items)
+        games = items;
+        // Make an array for the years included in the dataset.
+        for (game in games) {
+          makedatestring = games[game].Date.toISOString()
+          makedatestring = makedatestring.toString()
+          makedatestring = makedatestring.substr(0, 4)
+          if (countYears.includes(makedatestring) == false) {
+            countYears.push(makedatestring)
+          }
+        }
+        makedatestring = '';
+        if (err) {
+          reject(err)
+        } else {
+         resolve(games)
+        }
+        //resolve(games)
+      })
+    })
+  return datasetGeneration;
+
+}
+
+
+
+function mongoData() {
+  var dataFromMongo = new Promise(
+    function (resolve, reject) {
+      myData.length = 0;
+      for (item in bucketValues) {
+        myData[item] = [];
+      }
+      tempArray = [];
+      for (game in games) {
+        // The variable makedatestring contains the date of the game called from the database.
+        // It's compared to the value of the buckets created earlier. If it matches a bucket, it's put inside.
+        makedatestring = games[game].Date.toISOString()
+        makedatestring = makedatestring.toString()
+        if (buttonID == 'Daily') {
+          makedatestring = makedatestring.substr(0, 10)
+        } else if (buttonID == 'Monthly') {
+          makedatestring = makedatestring.substr(0, 7)
+        } else if (buttonID == 'Yearly') {
+          makedatestring = makedatestring.substr(0, 4) 
+        }
+        
+        // If bucketValues contains this game's date, put the game in that bucket's index.
+        indexOfDate = bucketValues.indexOf(makedatestring)
+        
+        if (indexOfDate >= 0) {
+          if (myData[indexOfDate] == null) {
+            myData[indexOfDate] = tempArray;
+          }
+          myData[indexOfDate].push(games[game])
+        }
+
+        // The tempArray was becoming filled with data, so empty it here.
+        tempArray = [];
+        countGames += 1
+
+      }  
+      var reason = new Error("Something broke and I couldn't retrieve any data.");
+     console.log(bucketValues)
+     console.log(myData)
+      for (valueCounter = 0; valueCounter < myData.length; valueCounter++) {
+        if (myData[valueCounter]) {
+          if (myData[valueCounter].length == 0) {
+            
+            myData.splice(valueCounter, 1)
+            bucketValues.splice(valueCounter, 1)
+            prettyBucketValues.splice(valueCounter, 1)
+            valueCounter -= 1
+          }
+        }
+      }
+      console.log(bucketValues)
+      console.log(myData)
+      if (countGames == games.length) {
+        resolve(myData)
+      } else {
+        reject(reason)
+      }
+      countGames = 0;
+    })
+return dataFromMongo
+}
+
+// This functions resizes the chessboards when the window size changes.
+function redrawChess() {
+  toughestWinFile.toughestWin()
+  easiestLossFile.easiestLoss()
+  craziestGameFile.craziestGame()
+
+}
+
+// This function checks for when the window is resized and calls redrawChess().
+function checkWindow() {
+  const firstBracket = window.matchMedia( "(max-width:992px)" );
+  const thirdBracket = window.matchMedia( "(min-width:1200px)" );
+
+  if (firstBracket.matches) {
+    if (windowState !== 1) {
+      redrawChess()
+      console.log('Recalculating1')
+    }
+    windowState = 1
+
+  } 
+  else if (thirdBracket.matches) {
+
+    if (windowState !== 3) {
+      redrawChess()
+      console.log('Recalculating3')
+    }
+    windowState = 3
+  }
+  else {
+
+    if (windowState !== 2) {
+      redrawChess()
+      console.log('Recalculating2')
+
+    }
+    windowState = 2
+  }
+}
+
+
+
+// Chain of promises that creates graphs from the click of a button.
+// First, on button click, grab the button value and connect to mongo.
+function buttonClick(buttonValue) {
+  // Add the overlay that lets the user know the data is being processed.
+  // document.getElementsByClassName("container")[1].style.zindex = "1";
+  document.getElementById("loading").style.display = "block";
+
+  window.addEventListener("resize", checkWindow);
+
+
+  buttonID = buttonValue;
+  connectToMongo()
+  // then, generate the x-axis values.
+  .then(function() {
+    return queryData();
+  })
+  // Then query the database.
+  .then(function() {
+    return generateBuckets();
+  })
+  // Then return the sorted data.
+  .then(function() {
+    return mongoData();
+
+  })
+  //Then run all of the graph files and return the completion message.
+  .then(function() {
+    numberOfGamesFile.numberOfGames();
+    gamesPerFormatFile.gamesPerFormat();
+    castlingFile.castlingStyle();
+    blunderTimePeriodFile.blunderTimePeriod();
+    blunderTimeDayFile.blunderTimeDay();
+    summaryFile.summary();
+    highestDailyGamesFile.highestDailyGames();
+    easiestLossFile.easiestLoss();
+    toughestWinFile.toughestWin();
+    craziestGameFile.craziestGame();
+    document.getElementById('summaryWell').scrollIntoView({behavior:"smooth"});
+    document.getElementById("loading").style.display = "none";
+    // document.getElementsByClassName("container")[1].style.display = "2";
+
+
+
+    return console.log('Graphs finished!');
+
+  })
+  .catch(failureCallback);
+}
+
+
+</script>
